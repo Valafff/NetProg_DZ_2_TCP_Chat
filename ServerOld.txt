@@ -1,0 +1,108 @@
+using NetProg_DZ_2_TCP_Chat.Client;
+using System.Net.Sockets;
+using System.Net;
+using System.Text;
+using System.Threading.Channels;
+
+
+Main();
+
+static async Task Main()
+{
+	List<TestClient> testClients = new List<TestClient>();
+
+	using (var listener = new TcpListener(IPAddress.Any, 12345))
+	{
+
+		listener.Start();
+
+		Console.WriteLine("Сервер запущен. Ожидание подключений...");
+
+		try
+		{
+
+			int clientNumber = 0;
+			//Основной цикл
+			while (true)
+			{
+				TcpClient client = listener.AcceptTcpClient();
+
+				using (NetworkStream stream = client.GetStream())
+				{
+					var buffer = new byte[256];
+					string incomeTempData = "";
+					while (stream.Read(buffer, 0, buffer.Length) > 0)
+					{
+						incomeTempData += Encoding.UTF8.GetString(buffer);
+					}
+
+					//await Console.Out.WriteLineAsync(incomeTempData);
+					string[] data = incomeTempData.Split(';');
+					if (Convert.ToInt32(data[0]) == 0)
+					{
+						int max;
+						if (testClients.Count>0)
+						{
+							max = testClients.Max(m => m.ClientId);
+						}
+						else
+						{
+							max = 0;
+						}
+
+						TestClient testClient = new TestClient() { ClientId = ++max, ClientName = data[1] };
+						testClients.Add(testClient);
+						Console.WriteLine($"Подключен клиент {testClient.ClientId} с именем {testClient.ClientName}");
+						// Обработка клиента в отдельном потоке
+						_ = HandleClientAsync(client, testClient.ClientId);
+					}
+					else
+					{
+						var tc = testClients.Find(c => c.ClientId == Convert.ToInt32(data[0]));
+						Console.WriteLine($"Подключен клиент {tc.ClientId} с именем {tc.ClientName}");
+						_ = HandleClientAsync(client, tc.ClientId);
+					}
+
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			await Console.Out.WriteLineAsync(ex.Message);
+		}
+		finally
+		{
+
+		}
+	}
+
+
+}
+
+static async Task HandleClientAsync(TcpClient client, int clientNumber)
+{
+	try
+	{
+		using (NetworkStream stream = client.GetStream())
+		{
+			byte[] buffer = new byte[1024];
+			int bytesRead;
+
+			while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+			{
+				// Просто пересылаем номер клиента обратно
+				await stream.WriteAsync(Encoding.UTF8.GetBytes($"Вы - клиент {clientNumber}"), 0, bytesRead);
+			}
+		}
+	}
+	catch (Exception ex)
+	{
+		Console.WriteLine($"Ошибка при обработке клиента {clientNumber}: {ex.Message}");
+	}
+	finally
+	{
+		client.Close();
+		Console.WriteLine($"Клиент {clientNumber} отключен");
+	}
+}
+

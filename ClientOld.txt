@@ -1,0 +1,61 @@
+using NetProg_DZ_2_TCP_Chat.Client;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Net.Security;
+using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Threading.Tasks;
+
+
+const string ip = "127.0.0.1";
+const int ReceiverPort = 12345;
+const int bufferSize = 256;
+const int delay = 5000;
+
+
+
+Main();
+
+
+static async Task Main()
+{
+	TestClient clientData = new TestClient();
+	Console.Write("Укажите имя клиента: ");
+	clientData.ClientName = Console.ReadLine();
+	clientData.ClientId = 0;
+	//Установление конечной точки
+	using (TcpClient client = new TcpClient(ip, ReceiverPort))
+	{
+		//Отправка первоначальных данных о клиенте
+		using (NetworkStream stream = client.GetStream())
+		{
+			//Какие-то данные
+			string temp = clientData.ClientId.ToString()+";"+clientData.ClientName;
+			//Преобразовываю данные в массив байтов
+			byte[] byteData = Encoding.UTF8.GetBytes(temp);
+			//Отпрпаляю данные 
+			stream.Write(byteData, 0, byteData.Length);
+		}
+
+		////получение данных о клиенте
+		//using (NetworkStream incomestream = client.GetStream())
+		//{
+		//	byte[] buffer = new byte[256];
+		//	string data = "";
+		//	while(incomestream.Read(buffer, 0, buffer.Length)>0)
+		//	{
+		//		data += Encoding.UTF8.GetString(buffer);
+		//	}
+  //          await Console.Out.WriteLineAsync(data);
+
+  //      }
+
+
+		Console.ReadKey();
+	}
+
+}
